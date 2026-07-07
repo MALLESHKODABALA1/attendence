@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+  <meta name="theme-color" content="#176b87">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="AI Attendance">
+  <title>AI Attendance Registration</title>
+  <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">AI Attendance System</p>
+        <h1>Student Registration & Live Attendance</h1>
+      </div>
+      <div class="csv-stack">
+        <div class="csv-pill">Registration CSV: {{ csv_file }}</div>
+        <div class="csv-pill">Attendance CSV: {{ attendance_file }}</div>
+        <div class="report-actions">
+          <a class="csv-pill report-link" href="/attendance-report.pdf?period=all">All PDF</a>
+          <a class="csv-pill report-link" href="/attendance-report.pdf?period=weekly">Weekly PDF</a>
+          <a class="csv-pill report-link" href="/attendance-report.pdf?period=monthly">Monthly PDF</a>
+        </div>
+      </div>
+    </header>
+
+    <nav class="mobile-tabs" aria-label="Mobile sections">
+      <a href="#registration">Register</a>
+      <a href="#attendance">Attendance</a>
+      <a href="#students">Students</a>
+    </nav>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <section class="messages" aria-live="polite">
+          {% for category, message in messages %}
+            <p class="message {{ category }}">{{ message }}</p>
+          {% endfor %}
+        </section>
+      {% endif %}
+    {% endwith %}
+
+    <form class="registration" id="registration" method="post" enctype="multipart/form-data">
+      <section class="panel">
+        <div class="section-heading">
+          <span class="step">1</span>
+          <div>
+            <h2>Registration Details</h2>
+            <p>Enter student details first. These fields are dumped into the CSV after registration.</p>
+          </div>
+        </div>
+
+        <div class="field-grid">
+          <label>
+            Student name <strong>*</strong>
+            <input name="student_name" id="studentName" type="text" placeholder="Example: Thilka" autocomplete="name" required>
+          </label>
+          <label>
+            Phone
+            <input name="phone" type="tel" placeholder="Mobile number" inputmode="tel" autocomplete="tel">
+          </label>
+          <label class="wide">
+            Email
+            <input name="email" type="email" placeholder="student@example.com" inputmode="email" autocomplete="email">
+          </label>
+          <label class="wide">
+            Password <strong>*</strong>
+            <input name="password" type="password" placeholder="Create login password" autocomplete="new-password" required>
+          </label>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="section-heading">
+          <span class="step">2</span>
+          <div>
+            <h2>Capture Registration Photo</h2>
+            <p>This captured and enhanced photo is saved inside <code>training img/&lt;student name&gt;</code>.</p>
+          </div>
+        </div>
+
+        <div class="camera-layout">
+          <div class="camera-box">
+            <video id="camera" autoplay playsinline></video>
+            <canvas id="snapshotCanvas" hidden></canvas>
+            <div id="cameraFallback" class="camera-fallback">Camera preview will appear here.</div>
+          </div>
+          <div class="capture-panel">
+            <img id="snapshotPreview" alt="Captured student preview" hidden>
+            <input type="hidden" name="captured_image" id="capturedImage">
+            <div class="button-row">
+              <button type="button" class="secondary" id="startCamera">Start camera</button>
+              <button type="button" id="capturePhoto">Capture photo</button>
+            </div>
+            <p class="hint">Use a clear front-facing photo with good light for better training quality.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="section-heading">
+          <span class="step">3</span>
+          <div>
+            <h2>Upload Training Images</h2>
+            <p>Optional extra photos are stored in the same student training folder.</p>
+          </div>
+        </div>
+
+        <label class="upload-drop">
+          <input name="training_images" id="trainingImages" type="file" accept="image/png,image/jpeg,image/webp,image/*" capture="user" multiple>
+          <span>Choose or capture training images</span>
+          <small id="fileSummary">Camera, PNG, JPG, JPEG, or WEBP files</small>
+        </label>
+      </section>
+
+      <div class="submit-bar">
+        <button type="submit">Register Student</button>
+      </div>
+    </form>
+
+    <section class="panel attendance-panel" id="attendance">
+      <div class="section-heading">
+          <span class="step">4</span>
+        <div>
+          <h2>Live Attendance</h2>
+          <p>Start live attendance. Only faces available in <code>training img</code> can be marked present; unknown faces are not stored.</p>
+        </div>
+      </div>
+
+      <div class="camera-layout">
+        <div class="camera-box">
+          <video id="attendanceCamera" autoplay playsinline></video>
+          <canvas id="attendanceCanvas" hidden></canvas>
+          <div id="attendanceFallback" class="camera-fallback">Live attendance camera will appear here.</div>
+        </div>
+        <div class="capture-panel">
+          <div class="status-card" id="attendanceStatus">
+            <strong>Ready for live check</strong>
+            <span>Start the camera, keep face steady, blink once, then move your lips. Moving a phone or paper photo will not count.</span>
+          </div>
+          <div class="check-grid">
+            <span id="faceCheck">Face match</span>
+            <span id="blinkCheck">Eye blink</span>
+            <span id="mouthCheck">Lip movement</span>
+            <span id="realFaceCheck">Live confirmed</span>
+          </div>
+          <div class="button-row">
+            <button type="button" class="secondary" id="startAttendance">Start live attendance</button>
+            <button type="button" id="stopAttendance">Stop</button>
+            <a class="button-link" href="/attendance-report.pdf?period=all">All PDF</a>
+            <a class="button-link" href="/attendance-report.pdf?period=weekly">Weekly PDF</a>
+            <a class="button-link" href="/attendance-report.pdf?period=monthly">Monthly PDF</a>
+          </div>
+          <p class="hint">Attendance is saved once per student per day in <code>{{ attendance_file }}</code>. After new live attendance is saved, email is sent to the registered email and logged in <code>{{ email_log_file }}</code>.</p>
+        </div>
+      </div>
+    </section>
+
+    <aside class="registered-list" id="students">
+      <h2>Registered Training Folders</h2>
+      {% if people %}
+        <ul>
+          {% for person in people %}
+            <li>
+              <span>{{ person.name }}</span>
+              <strong>{{ person.count }} image{{ '' if person.count == 1 else 's' }}</strong>
+              <form class="remove-form" action="/remove-student" method="post">
+                <input type="hidden" name="student_name" value="{{ person.name }}">
+                <input name="password" type="password" placeholder="Password" required>
+                <button class="danger" type="submit">Remove</button>
+              </form>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p>No training folders yet.</p>
+      {% endif %}
+    </aside>
+  </main>
+
+  <script src="{{ url_for('static', filename='registration.js') }}?v={{ asset_version }}"></script>
+</body>
+</html>

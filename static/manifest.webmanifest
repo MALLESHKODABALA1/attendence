@@ -1,0 +1,19 @@
+{
+  "name": "AI Attendance System",
+  "short_name": "AI Attendance",
+  "description": "Mobile-friendly AI face attendance registration and live attendance.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f4f7fb",
+  "theme_color": "#176b87",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/static/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

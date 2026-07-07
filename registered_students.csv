@@ -1,0 +1,6 @@
+registered_at,student_name,phone,email,password_hash,training_folder,captured_image,uploaded_images
+2026-07-07T13:32:26,rekha,7898754332,rekhashett111@gmail.com,,training img\rekha,training img\rekha\captured_20260707_133226.jpg,
+2026-07-07T14:30:14,mallesh,7898754332,malleshk6020@gmail.com,,training img\mallesh,training img\mallesh\captured_20260707_143014.jpg,
+2026-07-07T15:35:49,raj,7898754332,malleshk6020@gmail.com,,training img\raj,training img\raj\captured_20260707_153548.jpg,
+2026-07-07T15:46:08,rahul,7898754332,rekhashett111@gmail.com,,training img\rahul,training img\rahul\captured_20260707_154607.jpg,
+2026-07-07T19:19:31,prem,7898754332,malleshk6020@gmail.com,scrypt:32768:8:1$KKfevXzxzf2RASNd$a7ed85142953e24e96bce6e1cac2f4b0566240f1a9c597cde61b8d824ed2409c73531cfd89887536c4134681d3dc22c9fd3babce6278e6a68545aec70528fc54,training img\prem,training img\prem\captured_20260707_191931.jpg,
