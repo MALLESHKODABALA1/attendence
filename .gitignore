@@ -1,0 +1,13 @@
+.venv/
+__pycache__/
+*.pyc
+
+.env
+email_config.py
+certs/
+
+attendance.csv
+attendance_email_log.csv
+registered_students.csv
+training img/
+training_img/

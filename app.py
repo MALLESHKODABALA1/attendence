@@ -16,7 +16,7 @@ from werkzeug.utils import secure_filename
 
 
 BASE_DIR = Path(__file__).resolve().parent
-TRAINING_DIR = BASE_DIR / "training img"
+TRAINING_DIR = BASE_DIR / "training_img"
 REGISTRATION_CSV = BASE_DIR / "registered_students.csv"
 ATTENDANCE_CSV = BASE_DIR / "attendance.csv"
 EMAIL_LOG_CSV = BASE_DIR / "attendance_email_log.csv"
@@ -49,6 +49,8 @@ REGISTRATION_FIELDS = [
     "captured_image",
     "uploaded_images",
 ]
+ATTENDANCE_FIELDS = ["marked_at", "date", "time", "student_name", "status", "confidence", "method"]
+EMAIL_LOG_FIELDS = ["logged_at", "student_name", "recipient", "sent", "message"]
 
 try:
     from email_config import EMAIL_SETTINGS
@@ -62,12 +64,32 @@ SMTP_PASSWORD = os.environ.get("ATTENDANCE_SMTP_PASSWORD", EMAIL_SETTINGS.get("S
 SMTP_FROM = os.environ.get("ATTENDANCE_SMTP_FROM", EMAIL_SETTINGS.get("SMTP_FROM", SMTP_USER))
 
 app = Flask(__name__)
-app.secret_key = "attendance-registration-local-secret"
+app.secret_key = os.environ.get("SECRET_KEY", "attendance-registration-local-secret")
 FACE_CASCADE = cv2.CascadeClassifier(str(Path(cv2.data.haarcascades) / "haarcascade_frontalface_default.xml"))
 EYE_CASCADE = cv2.CascadeClassifier(str(Path(cv2.data.haarcascades) / "haarcascade_eye.xml"))
 SMILE_CASCADE = cv2.CascadeClassifier(str(Path(cv2.data.haarcascades) / "haarcascade_smile.xml"))
 ATTENDANCE_SESSIONS = {}
 FACE_MODEL_CACHE = {"signature": None, "profiles": []}
+
+
+def create_csv_if_missing(path, fields):
+    if path.exists():
+        return
+    with path.open("w", newline="", encoding="utf-8") as csv_file:
+        writer = csv.DictWriter(csv_file, fieldnames=fields)
+        writer.writeheader()
+
+
+def initialize_storage():
+    TRAINING_DIR.mkdir(parents=True, exist_ok=True)
+    (BASE_DIR / "static").mkdir(exist_ok=True)
+    (BASE_DIR / "templates").mkdir(exist_ok=True)
+    create_csv_if_missing(REGISTRATION_CSV, REGISTRATION_FIELDS)
+    create_csv_if_missing(ATTENDANCE_CSV, ATTENDANCE_FIELDS)
+    create_csv_if_missing(EMAIL_LOG_CSV, EMAIL_LOG_FIELDS)
+
+
+initialize_storage()
 
 
 def slugify_name(name):
@@ -678,9 +700,8 @@ def registered_email_for(name):
 
 def append_email_log(name, recipient, sent, message):
     csv_exists = EMAIL_LOG_CSV.exists()
-    fields = ["logged_at", "student_name", "recipient", "sent", "message"]
     with EMAIL_LOG_CSV.open("a", newline="", encoding="utf-8") as csv_file:
-        writer = csv.DictWriter(csv_file, fieldnames=fields)
+        writer = csv.DictWriter(csv_file, fieldnames=EMAIL_LOG_FIELDS)
         if not csv_exists:
             writer.writeheader()
         writer.writerow(
@@ -760,7 +781,6 @@ def already_marked_today(name):
 
 
 def ensure_attendance_schema():
-    fields = ["marked_at", "date", "time", "student_name", "status", "confidence", "method"]
     if not ATTENDANCE_CSV.exists():
         return
     with ATTENDANCE_CSV.open("r", newline="", encoding="utf-8") as csv_file:
@@ -770,7 +790,7 @@ def ensure_attendance_schema():
         rows = list(reader)
 
     with ATTENDANCE_CSV.open("w", newline="", encoding="utf-8") as csv_file:
-        writer = csv.DictWriter(csv_file, fieldnames=fields)
+        writer = csv.DictWriter(csv_file, fieldnames=ATTENDANCE_FIELDS)
         writer.writeheader()
         for row in rows:
             writer.writerow(
@@ -788,7 +808,6 @@ def ensure_attendance_schema():
 
 def append_attendance_once(name, confidence, status):
     ensure_attendance_schema()
-    fields = ["marked_at", "date", "time", "student_name", "status", "confidence", "method"]
     now = datetime.now()
     today = now.date().isoformat()
     target_name = slugify_name(name).casefold()
@@ -818,14 +837,14 @@ def append_attendance_once(name, confidence, status):
 
     if updated_existing:
         with ATTENDANCE_CSV.open("w", newline="", encoding="utf-8") as csv_file:
-            writer = csv.DictWriter(csv_file, fieldnames=fields)
+            writer = csv.DictWriter(csv_file, fieldnames=ATTENDANCE_FIELDS)
             writer.writeheader()
             writer.writerows(rows)
         return now, True
 
     csv_exists = ATTENDANCE_CSV.exists()
     with ATTENDANCE_CSV.open("a", newline="", encoding="utf-8") as csv_file:
-        writer = csv.DictWriter(csv_file, fieldnames=fields)
+        writer = csv.DictWriter(csv_file, fieldnames=ATTENDANCE_FIELDS)
         if not csv_exists:
             writer.writeheader()
         writer.writerow(
@@ -1351,7 +1370,7 @@ def index():
 
 if __name__ == "__main__":
     use_https = os.environ.get("ATTENDANCE_HTTPS", "0").lower() in {"1", "true", "yes", "on"}
-    default_port = "5443" if use_https else "5000"
+    default_port = os.environ.get("PORT", "5443" if use_https else "5000")
     cert_file = os.environ.get("ATTENDANCE_CERT", "")
     key_file = os.environ.get("ATTENDANCE_KEY", "")
     ssl_context = None
@@ -1360,7 +1379,7 @@ if __name__ == "__main__":
     app.run(
         host=os.environ.get("ATTENDANCE_HOST", "0.0.0.0"),
         port=int(os.environ.get("ATTENDANCE_PORT", default_port)),
-        debug=True,
+        debug=os.environ.get("FLASK_DEBUG", "0").lower() in {"1", "true", "yes", "on"},
         use_reloader=False,
         ssl_context=ssl_context,
     )
